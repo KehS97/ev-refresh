@@ -33,7 +33,9 @@ call on a schedule:
    the connector goes unavailable and becomes available again. If it goes
    unavailable again *before* the 3rd ping (someone else took the spot),
    it pushes a "no longer available" notice instead, so you're not driving
-   over or waiting on something that's already gone.
+   over or waiting on something that's already gone. Once the cap is
+   reached, it stays fully silent either way — no "gone" notice either,
+   since by then you may not even be planning to charge anymore.
 6. Remember status + notify count in `state.json`, committed back to the
    repo only when something actually changed.
 

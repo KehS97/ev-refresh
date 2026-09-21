@@ -164,10 +164,14 @@ async function main() {
         console.log(`${conn.station} still available — notification cap reached, staying quiet.`);
       }
     } else {
-      if (previous.status === AVAILABLE_STATUS && previous.notifyCount > 0) {
-        // We'd pinged about this spot being open and someone (possibly the
-        // user, possibly another driver) grabbed it before the cap — worth
-        // knowing, since a driver may be en route or waiting on it.
+      if (
+        previous.status === AVAILABLE_STATUS &&
+        previous.notifyCount > 0 &&
+        previous.notifyCount < MAX_NOTIFICATIONS_PER_WINDOW
+      ) {
+        // Someone grabbed it before we'd finished reminding — worth
+        // knowing. Once the cap is hit, silence just means "no longer
+        // relevant," not "still track this," so we stop caring either way.
         console.log(`${conn.station} is no longer available — notifying.`);
         await notify(`${conn.station} is no longer available anymore.`);
       }
