@@ -1,23 +1,30 @@
 // EV Charger Availability Monitor — GitHub Actions version
 //
 // Polls the Regatta EVCMS overview API and pushes an ntfy.sh notification
-// the moment a charging spot flips to "Available". Runs on a schedule via
+// when a charging spot is "Available". Runs on a schedule via
 // .github/workflows/poll.yml.
 //
 // Required environment variables (set as GitHub Actions repo secrets):
 //   COGNITO_REFRESH_TOKEN, NTFY_TOPIC
 //
-// State (last-seen status per connector) is kept in state.json, which the
-// workflow commits back to the repo only when something actually changes.
+// State (status + notify count per connector) is kept in state.json, which
+// the workflow commits back to the repo only when something actually
+// changes.
+//
+// monitoring.json is a manual on/off switch: set {"enabled": false} to stop
+// getting notified (e.g. when you don't need to charge) without touching
+// secrets or the schedule. See README for how to flip it from your phone.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 const AVAILABLE_STATUS = "Available";
+const MAX_NOTIFICATIONS_PER_WINDOW = 3; // the initial ping + 2 reminders
 const COGNITO_CLIENT_ID = "6mbpildnjj725vhpe16409llfq";
 const COGNITO_OAUTH_DOMAIN = "evcms-rtta.auth.ap-southeast-1.amazoncognito.com";
 const OVERVIEW_URL =
   "https://evcms-api.energie.co.id/regatta/get/overview?code=regaatax8w1750O0wqex2lw8327150e998";
 const STATE_FILE = new URL("./state.json", import.meta.url);
+const MONITORING_FILE = new URL("./monitoring.json", import.meta.url);
 
 async function getAccessToken() {
   const res = await fetch(`https://${COGNITO_OAUTH_DOMAIN}/oauth2/token`, {
@@ -84,7 +91,21 @@ async function notify(text) {
 
 function loadState() {
   if (!existsSync(STATE_FILE)) return {};
-  return JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const raw = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+
+  // Migrate the old format (bare status string per connector) transparently.
+  const migrated = {};
+  for (const [id, value] of Object.entries(raw)) {
+    migrated[id] =
+      typeof value === "string" ? { status: value, notifyCount: 0 } : value;
+  }
+  return migrated;
+}
+
+function loadMonitoringEnabled() {
+  if (!existsSync(MONITORING_FILE)) return true;
+  const raw = JSON.parse(readFileSync(MONITORING_FILE, "utf8"));
+  return raw.enabled !== false;
 }
 
 async function main() {
@@ -95,6 +116,11 @@ async function main() {
     return;
   }
 
+  if (!loadMonitoringEnabled()) {
+    console.log("Monitoring is turned off (monitoring.json). Skipping poll.");
+    return;
+  }
+
   const state = loadState();
   const accessToken = await getAccessToken();
   const statuses = await fetchConnectorStatuses(accessToken);
@@ -102,15 +128,30 @@ async function main() {
   let changed = false;
 
   for (const conn of statuses) {
-    const previous = state[conn.connectorId];
+    const previous = state[conn.connectorId] || { status: null, notifyCount: 0 };
+    let notifyCount = previous.notifyCount || 0;
 
-    if (conn.status === AVAILABLE_STATUS && previous !== AVAILABLE_STATUS) {
-      console.log(`${conn.station} just became available — notifying.`);
-      await notify(`${conn.station} just became available.`);
+    if (conn.status === AVAILABLE_STATUS) {
+      if (previous.status !== AVAILABLE_STATUS) {
+        notifyCount = 0; // a fresh availability window just started
+      }
+      if (notifyCount < MAX_NOTIFICATIONS_PER_WINDOW) {
+        notifyCount += 1;
+        console.log(
+          `${conn.station} is available — notifying (${notifyCount}/${MAX_NOTIFICATIONS_PER_WINDOW}).`
+        );
+        await notify(
+          `${conn.station} is available. (Reminder ${notifyCount}/${MAX_NOTIFICATIONS_PER_WINDOW})`
+        );
+      } else {
+        console.log(`${conn.station} still available — notification cap reached, staying quiet.`);
+      }
+    } else {
+      notifyCount = 0; // reset so the next availability window notifies fresh
     }
 
-    if (conn.status !== previous) {
-      state[conn.connectorId] = conn.status;
+    if (conn.status !== previous.status || notifyCount !== previous.notifyCount) {
+      state[conn.connectorId] = { status: conn.status, notifyCount };
       changed = true;
     }
 

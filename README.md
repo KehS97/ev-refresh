@@ -1,23 +1,17 @@
 # EV Charger Monitor
 
-Polls the Regatta EVCMS site on a 1-minute cron and sends a phone push the
-instant BASEMENT 1 or BASEMENT 2 becomes "Available". Runs as a GitHub
-Actions scheduled workflow so it works without your computer being on.
+Polls the Regatta EVCMS site every 5 minutes and sends a phone push when
+BASEMENT 1 or BASEMENT 2 is "Available". Runs as a GitHub Actions scheduled
+workflow so it works without your computer being on.
 
-Note: GitHub does not guarantee scheduled workflows actually run every
-minute — it officially documents the shortest reliable interval as 5
-minutes, and runs get delayed further during high-traffic periods (e.g. the
-top of each hour). In practice expect something closer to every 2-5
-minutes, not a strict 60 seconds. If that's not tight enough, the fallback
-is a real always-on host: a Cloudflare Worker (this repo had one — removed
-because ntfy.sh blocks Cloudflare's network) paired with a notification
-service that isn't Cloudflare-hosted, e.g. a Telegram bot via
+Note: `*/5 * * * *` is the shortest cron interval GitHub Actions actually
+runs — a `* * * * *` (every minute) schedule was tried first and never
+fired once in ~18 hours, so treat sub-5-minute schedules as effectively
+unsupported rather than just "delayed." If you need tighter timing, the
+fallback is a real always-on host: a Cloudflare Worker (this repo had one —
+removed because ntfy.sh blocks Cloudflare's network) paired with a
+notification service that isn't Cloudflare-hosted, e.g. a Telegram bot via
 `api.telegram.org`, which responded fine in testing.
-
-(An earlier version of this ran on Cloudflare Workers, but ntfy.sh
-consistently refused connections from Cloudflare's network — see git
-history / worker.js if you ever want to revisit that approach with a
-different push service.)
 
 ## How it works
 
@@ -26,16 +20,35 @@ The Regatta web app (regatta.energie.co.id/evgate) calls a JSON API at
 Cognito (Hosted UI / federated Google login). `poll.js` replays that same
 call on a schedule:
 
-1. Exchange a saved Cognito **refresh token** for a fresh access token via
+1. Check `monitoring.json` — if monitoring is turned off, stop here.
+2. Exchange a saved Cognito **refresh token** for a fresh access token via
    the Cognito OAuth token endpoint.
-2. Call the overview API with that access token.
-3. Read each connector's `status` field (`Available`, `Charging`,
+3. Call the overview API with that access token.
+4. Read each connector's `status` field (`Available`, `Charging`,
    `Preparing`, `SuspendedEV`, `Offline`).
-4. If a connector just changed *to* `Available`, push a notification via
-   [ntfy.sh](https://ntfy.sh).
-5. Remember the new state in `state.json`, committed back to the repo only
-   when something actually changed, so it doesn't repeat the notification
-   every run.
+5. If a connector is `Available`, push a notification via
+   [ntfy.sh](https://ntfy.sh) — up to 3 times per availability window (the
+   first ping plus 2 reminders on later polls), then it stays quiet until
+   the connector goes unavailable and becomes available again.
+6. Remember status + notify count in `state.json`, committed back to the
+   repo only when something actually changed.
+
+## Turning notifications on/off
+
+Edit `monitoring.json` — `{"enabled": true}` to get pushed when a spot
+opens, `{"enabled": false}` when you don't care (e.g. you're not looking to
+charge right now). The poller checks this on every run and skips entirely
+when disabled.
+
+The easiest way to flip it from your phone: bookmark this URL to your home
+screen —
+
+```
+https://github.com/KehS97/ev-refresh/edit/main/monitoring.json
+```
+
+— it opens GitHub's mobile web editor straight into the file. Change
+`true`/`false`, tap "Commit changes," done.
 
 ## One-time setup
 
@@ -65,52 +78,26 @@ GitHub Actions **encrypted secret**, never committed to the repo.
 Note: Cognito refresh tokens typically expire after ~30 days. If the
 workflow starts failing, repeat this step and update the secret.
 
-### 3. Push this repo to GitHub
+### 3. Repo secrets
 
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-```
-
-Create an empty repo on github.com (private is fine — no need to make it
-public), then:
-
-```bash
-git remote add origin <your-repo-url>
-git branch -M main
-git push -u origin main
-```
-
-### 4. Add repo secrets
-
-On GitHub: repo → Settings → Secrets and variables → Actions → "New
-repository secret". Add two:
+Repo → Settings → Secrets and variables → Actions → "New repository
+secret":
 
 - `COGNITO_REFRESH_TOKEN` — the value from step 2
 - `NTFY_TOPIC` — your ntfy topic name from step 1
-
-### 5. Enable the workflow
-
-Actions run automatically once the workflow file is on the default branch.
-Go to the repo's **Actions** tab, select "Poll EV charger status", and you
-should see it listed as scheduled (every 5 minutes) with a "Run workflow"
-button for manual testing.
 
 ## Testing
 
 From the Actions tab, click "Run workflow" to trigger it on demand and
 watch the logs — it prints each connector's current status, and logs
-"notifying" if it fires a push.
-
-To test the push path itself without waiting for a real status change, you
-can temporarily edit `state.json` to a non-`Available` value for one of the
-connector IDs and re-run — if the site currently shows that connector as
-available, it'll notify. (Remember to revert afterward, or just let the
-next real poll overwrite it.)
+"notifying" if it fires a push. Check the optional "Send a one-off test
+push" box to exercise just the ntfy path without needing a real status
+change.
 
 ## Files
 
 - `poll.js` — the polling + notification logic (Node 20+, no dependencies)
-- `state.json` — last-seen status per connector, updated by the workflow
+- `state.json` — last-seen status + notify count per connector, updated by
+  the workflow
+- `monitoring.json` — on/off switch, edit directly to control notifications
 - `.github/workflows/poll.yml` — the schedule and commit-back step
