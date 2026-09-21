@@ -164,6 +164,13 @@ async function main() {
         console.log(`${conn.station} still available — notification cap reached, staying quiet.`);
       }
     } else {
+      if (previous.status === AVAILABLE_STATUS && previous.notifyCount > 0) {
+        // We'd pinged about this spot being open and someone (possibly the
+        // user, possibly another driver) grabbed it before the cap — worth
+        // knowing, since a driver may be en route or waiting on it.
+        console.log(`${conn.station} is no longer available — notifying.`);
+        await notify(`${conn.station} is no longer available anymore.`);
+      }
       notifyCount = 0; // reset so the next availability window notifies fresh
     }
 

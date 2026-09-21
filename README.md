@@ -30,7 +30,10 @@ call on a schedule:
 5. If a connector is `Available`, push a notification via
    [ntfy.sh](https://ntfy.sh) — up to 3 times per availability window (the
    first ping plus 2 reminders on later polls), then it stays quiet until
-   the connector goes unavailable and becomes available again.
+   the connector goes unavailable and becomes available again. If it goes
+   unavailable again *before* the 3rd ping (someone else took the spot),
+   it pushes a "no longer available" notice instead, so you're not driving
+   over or waiting on something that's already gone.
 6. Remember status + notify count in `state.json`, committed back to the
    repo only when something actually changed.
 
