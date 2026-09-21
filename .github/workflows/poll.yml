@@ -4,7 +4,12 @@ on:
   schedule:
     # GitHub's practical minimum interval for scheduled workflows is ~5 minutes.
     - cron: "*/5 * * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      test_notify:
+        description: "Send a one-off test push instead of polling (verifies the ntfy path)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -27,6 +32,7 @@ jobs:
         env:
           COGNITO_REFRESH_TOKEN: ${{ secrets.COGNITO_REFRESH_TOKEN }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TEST_NOTIFY: ${{ github.event.inputs.test_notify == 'true' && '1' || '' }}
         run: node poll.js
 
       - name: Commit state if changed

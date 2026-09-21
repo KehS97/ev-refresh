@@ -88,6 +88,13 @@ function loadState() {
 }
 
 async function main() {
+  if (process.env.TEST_NOTIFY === "1") {
+    console.log("TEST_NOTIFY=1 set — sending a test push and exiting.");
+    await notify("Test notification from EV charger monitor.");
+    console.log("Test push sent.");
+    return;
+  }
+
   const state = loadState();
   const accessToken = await getAccessToken();
   const statuses = await fetchConnectorStatuses(accessToken);
