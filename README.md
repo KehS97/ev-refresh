@@ -20,7 +20,8 @@ The Regatta web app (regatta.energie.co.id/evgate) calls a JSON API at
 Cognito (Hosted UI / federated Google login). `poll.js` replays that same
 call on a schedule:
 
-1. Check `monitoring.json` — if monitoring is turned off, stop here.
+1. Check whether GitHub Issue #1 ("Charger monitoring") is open — if it's
+   closed, stop here.
 2. Exchange a saved Cognito **refresh token** for a fresh access token via
    the Cognito OAuth token endpoint.
 3. Call the overview API with that access token.
@@ -35,20 +36,14 @@ call on a schedule:
 
 ## Turning notifications on/off
 
-Edit `monitoring.json` — `{"enabled": true}` to get pushed when a spot
-opens, `{"enabled": false}` when you don't care (e.g. you're not looking to
-charge right now). The poller checks this on every run and skips entirely
-when disabled.
+GitHub Issue #1 ("Charger monitoring") in this repo is the toggle:
+**open = notifications on, closed = notifications off.** The poller checks
+its state on every run and skips entirely when closed.
 
-The easiest way to flip it from your phone: bookmark this URL to your home
-screen —
-
-```
-https://github.com/KehS97/ev-refresh/edit/main/monitoring.json
-```
-
-— it opens GitHub's mobile web editor straight into the file. Change
-`true`/`false`, tap "Commit changes," done.
+To flip it, open the issue in the GitHub app (or
+https://github.com/KehS97/ev-refresh/issues/1) and tap the native
+**Close issue** / **Reopen issue** button at the bottom — no typing, one
+tap. Bookmark that URL to your home screen for quick access.
 
 ## One-time setup
 
@@ -99,5 +94,5 @@ change.
 - `poll.js` — the polling + notification logic (Node 20+, no dependencies)
 - `state.json` — last-seen status + notify count per connector, updated by
   the workflow
-- `monitoring.json` — on/off switch, edit directly to control notifications
+- GitHub Issue #1 — the on/off switch (open = on, closed = off)
 - `.github/workflows/poll.yml` — the schedule and commit-back step

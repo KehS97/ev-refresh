@@ -2,12 +2,12 @@ name: Poll EV charger status
 
 on:
   schedule:
-    # A "* * * * *" (every minute) cron was tried first but never actually
-    # fired once in ~18 hours — GitHub's scheduler appears to silently drop
-    # schedules more frequent than its documented 5-minute minimum, rather
-    # than just delaying them. "*/5 * * * *" is the shortest interval that
-    # reliably runs. Expect some further slack during high-traffic periods
-    # (e.g. the top of each hour).
+    # "*/5 * * * *" is the shortest cron interval GitHub officially
+    # documents as reliable. Note: brand-new repos can also take 12-48
+    # hours before GitHub's scheduler starts firing scheduled runs at all
+    # (undocumented but widely reported) — if runs aren't appearing
+    # automatically yet, that's likely why; manual "Run workflow" always
+    # works in the meantime.
     - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
@@ -18,6 +18,7 @@ on:
 
 permissions:
   contents: write
+  issues: read
 
 concurrency:
   group: ev-charger-poll
@@ -37,6 +38,7 @@ jobs:
         env:
           COGNITO_REFRESH_TOKEN: ${{ secrets.COGNITO_REFRESH_TOKEN }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TEST_NOTIFY: ${{ github.event.inputs.test_notify == 'true' && '1' || '' }}
         run: node poll.js
 

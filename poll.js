@@ -11,9 +11,9 @@
 // the workflow commits back to the repo only when something actually
 // changes.
 //
-// monitoring.json is a manual on/off switch: set {"enabled": false} to stop
-// getting notified (e.g. when you don't need to charge) without touching
-// secrets or the schedule. See README for how to flip it from your phone.
+// The on/off switch is GitHub Issue #1 ("Charger monitoring") in this repo:
+// open = notifications on, closed = notifications off. Toggle it from the
+// GitHub mobile app's native Close/Reopen issue button — no typing needed.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
@@ -24,7 +24,8 @@ const COGNITO_OAUTH_DOMAIN = "evcms-rtta.auth.ap-southeast-1.amazoncognito.com";
 const OVERVIEW_URL =
   "https://evcms-api.energie.co.id/regatta/get/overview?code=regaatax8w1750O0wqex2lw8327150e998";
 const STATE_FILE = new URL("./state.json", import.meta.url);
-const MONITORING_FILE = new URL("./monitoring.json", import.meta.url);
+const GITHUB_REPO = "KehS97/ev-refresh";
+const MONITORING_TOGGLE_ISSUE = 1;
 
 async function getAccessToken() {
   const res = await fetch(`https://${COGNITO_OAUTH_DOMAIN}/oauth2/token`, {
@@ -102,10 +103,24 @@ function loadState() {
   return migrated;
 }
 
-function loadMonitoringEnabled() {
-  if (!existsSync(MONITORING_FILE)) return true;
-  const raw = JSON.parse(readFileSync(MONITORING_FILE, "utf8"));
-  return raw.enabled !== false;
+async function isMonitoringEnabled() {
+  const res = await fetch(
+    `https://api.github.com/repos/${GITHUB_REPO}/issues/${MONITORING_TOGGLE_ISSUE}`,
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "ev-charger-monitor",
+      },
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(`Failed to check toggle issue state (${res.status}): ${await res.text()}`);
+  }
+
+  const issue = await res.json();
+  return issue.state === "open";
 }
 
 async function main() {
@@ -116,8 +131,10 @@ async function main() {
     return;
   }
 
-  if (!loadMonitoringEnabled()) {
-    console.log("Monitoring is turned off (monitoring.json). Skipping poll.");
+  if (!(await isMonitoringEnabled())) {
+    console.log(
+      `Monitoring is off (issue #${MONITORING_TOGGLE_ISSUE} is closed). Skipping poll.`
+    );
     return;
   }
 
