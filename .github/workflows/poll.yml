@@ -2,13 +2,13 @@ name: Poll EV charger status
 
 on:
   schedule:
-    # GitHub does not guarantee this runs exactly every minute — scheduled
-    # workflows are queued behind GitHub's own load and officially documented
-    # as "the shortest interval is 5 minutes"; expect real-world runs closer
-    # to every 2-5 minutes, with more delay during high-traffic periods
-    # (e.g. the top of each hour). See README for the fallback options if
-    # this drifts too much for your needs.
-    - cron: "* * * * *"
+    # A "* * * * *" (every minute) cron was tried first but never actually
+    # fired once in ~18 hours — GitHub's scheduler appears to silently drop
+    # schedules more frequent than its documented 5-minute minimum, rather
+    # than just delaying them. "*/5 * * * *" is the shortest interval that
+    # reliably runs. Expect some further slack during high-traffic periods
+    # (e.g. the top of each hour).
+    - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       test_notify:
