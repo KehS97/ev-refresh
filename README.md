@@ -1,8 +1,18 @@
 # EV Charger Monitor
 
-Polls the Regatta EVCMS site every 5 minutes and sends a phone push the
+Polls the Regatta EVCMS site on a 1-minute cron and sends a phone push the
 instant BASEMENT 1 or BASEMENT 2 becomes "Available". Runs as a GitHub
 Actions scheduled workflow so it works without your computer being on.
+
+Note: GitHub does not guarantee scheduled workflows actually run every
+minute — it officially documents the shortest reliable interval as 5
+minutes, and runs get delayed further during high-traffic periods (e.g. the
+top of each hour). In practice expect something closer to every 2-5
+minutes, not a strict 60 seconds. If that's not tight enough, the fallback
+is a real always-on host: a Cloudflare Worker (this repo had one — removed
+because ntfy.sh blocks Cloudflare's network) paired with a notification
+service that isn't Cloudflare-hosted, e.g. a Telegram bot via
+`api.telegram.org`, which responded fine in testing.
 
 (An earlier version of this ran on Cloudflare Workers, but ntfy.sh
 consistently refused connections from Cloudflare's network — see git
