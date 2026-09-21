@@ -1,0 +1,5 @@
+{
+  "name": "ev-charger-monitor",
+  "private": true,
+  "type": "module"
+}
