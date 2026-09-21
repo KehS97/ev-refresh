@@ -1,4 +1,10 @@
 {
-  "JVE224503078WE": "Available",
-  "JVE241100723WE": "Available"
+  "JVE224503078WE": {
+    "status": "Available",
+    "notifyCount": 1
+  },
+  "JVE241100723WE": {
+    "status": "Available",
+    "notifyCount": 1
+  }
 }
