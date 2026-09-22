@@ -131,18 +131,27 @@ charging stops for any reason. iOS Shortcuts' "when I get an email"
 automation can only check every ~15 minutes (an iOS limit, not something a
 shortcut can change), so instead `gmail-alert/Code.gs` — a Google Apps
 Script running under your own Gmail account, no credentials leave Google —
-checks for either email every minute and pushes an ntfy notification
-(same topic, titled "EV fully charged" or "EV charging stopped" so they're
-distinguishable) the moment it finds one. Matched emails get an
-`ev-notified` Gmail label so they don't re-trigger.
+checks for either email every minute.
+
+It doesn't push to ntfy directly — testing showed ntfy.sh rate-limits Apps
+Script's shared outbound IP pool (429s, then connection failures), the
+same fundamental problem as the Cloudflare Worker earlier, just a
+different failure mode. Instead it dispatches
+`.github/workflows/notify.yml`, a small workflow that just relays a
+title/message to ntfy from GitHub's network (reachable, like everything
+else here). Matched emails get an `ev-notified` Gmail label so they don't
+re-trigger.
 
 Setup:
 
 1. Go to https://script.google.com → New project.
 2. Delete the default code, paste in the contents of `gmail-alert/Code.gs`.
-3. Replace `REPLACE_WITH_YOUR_NTFY_TOPIC` with your actual ntfy topic name.
-4. Save (Ctrl+S) — the function dropdown stays empty/greyed out until the
+3. Save (Ctrl+S) — the function dropdown stays empty/greyed out until the
    file is saved.
+4. Project Settings (gear icon, left sidebar) → Script Properties → Add
+   property: name `GITHUB_TOKEN`, value = the same fine-grained GitHub
+   token created for the trigger Worker (repo: `ev-refresh`, permission:
+   Actions read/write) — reuse it, no need for a second token.
 5. Run the `checkForChargingEmails` function once from the editor (▶ button)
    — it'll prompt to authorize Gmail access for the script; approve it.
 6. Run the `installTrigger` function once (switch the function dropdown at

@@ -1,0 +1,33 @@
+name: Send ntfy notification
+
+# A small relay: takes a title + message via workflow_dispatch and posts it
+# to ntfy.sh. Exists because some callers (Google Apps Script, Cloudflare
+# Workers) can't reliably reach ntfy.sh directly from their shared/pooled
+# outbound IPs, while GitHub Actions runners can.
+
+on:
+  workflow_dispatch:
+    inputs:
+      title:
+        description: "Notification title"
+        required: true
+      message:
+        description: "Notification body"
+        required: true
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Push to ntfy
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TITLE: ${{ inputs.title }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          curl -sf -X POST "https://ntfy.sh/${NTFY_TOPIC}" \
+            -H "User-Agent: Mozilla/5.0 (compatible; ev-charger-monitor/1.0)" \
+            -H "Title: ${TITLE}" \
+            -H "Priority: urgent" \
+            -H "Tags: battery" \
+            -d "${MESSAGE}"
