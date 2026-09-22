@@ -122,6 +122,33 @@ npx wrangler deploy
 (`GITHUB_REPO` var). Once deployed, it calls this repo's
 `workflow_dispatch` endpoint every minute.
 
+## "Fully charged" email alert
+
+Separate from charger availability: Regatta emails
+`admin-regatta@harapanenergie.com` → "⚠️ WARNING: Your EV is fully charged"
+when your car finishes charging. iOS Shortcuts' "when I get an email"
+automation can only check every ~15 minutes (an iOS limit, not something a
+shortcut can change), so instead `gmail-alert/Code.gs` — a Google Apps
+Script running under your own Gmail account, no credentials leave Google —
+checks for that email every minute and pushes an ntfy notification
+(same topic, titled "EV fully charged" so it's distinguishable) the moment
+it finds one. Matched emails get an `ev-notified` Gmail label so they don't
+re-trigger.
+
+Setup:
+
+1. Go to https://script.google.com → New project.
+2. Delete the default code, paste in the contents of `gmail-alert/Code.gs`.
+3. Replace `REPLACE_WITH_YOUR_NTFY_TOPIC` with your actual ntfy topic name.
+4. Run the `checkForFullChargeEmail` function once from the editor (▶ button)
+   — it'll prompt to authorize Gmail access for the script; approve it.
+5. Run the `installTrigger` function once (switch the function dropdown at
+   the top, then ▶) — this installs the 1-minute recurring trigger. You can
+   verify it under the clock icon ("Triggers") in the left sidebar.
+
+You can drop the Shortcuts automation entirely once this is confirmed
+working — the ntfy push replaces it.
+
 ## Testing
 
 From the Actions tab, click "Run workflow" to trigger it on demand and
