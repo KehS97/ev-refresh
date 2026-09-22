@@ -1,8 +1,8 @@
-// EV Charger Monitor — "fully charged" email alert
+// EV Charger Monitor — charging status email alerts
 //
 // Runs inside Google Apps Script under your own Gmail account (no
-// credentials leave Google). Every minute it searches for a new
-// "your EV is fully charged" email from Regatta and pushes an ntfy
+// credentials leave Google). Every minute it searches for new "fully
+// charged" or "stopped charging" emails from Regatta and pushes an ntfy
 // notification the moment it finds one — replacing the 15-minute-minimum
 // Shortcuts email-polling automation, which is an iOS limitation Shortcuts
 // itself can't get around.
@@ -11,10 +11,14 @@
 
 var NTFY_TOPIC = "REPLACE_WITH_YOUR_NTFY_TOPIC";
 var LABEL_NAME = "ev-notified";
+var SENDER = "admin-regatta@harapanenergie.com";
 var SEARCH_QUERY =
-  'from:admin-regatta@harapanenergie.com subject:"fully charged" -label:' + LABEL_NAME;
+  "from:" +
+  SENDER +
+  ' (subject:"fully charged" OR subject:"Has Stop Charging") -label:' +
+  LABEL_NAME;
 
-function checkForFullChargeEmail() {
+function checkForChargingEmails() {
   var label = GmailApp.getUserLabelByName(LABEL_NAME);
   if (!label) {
     label = GmailApp.createLabel(LABEL_NAME);
@@ -23,11 +27,19 @@ function checkForFullChargeEmail() {
   var threads = GmailApp.search(SEARCH_QUERY);
 
   threads.forEach(function (thread) {
+    var subject = thread.getFirstMessageSubject();
+    var isFullyCharged = subject.toLowerCase().indexOf("fully charged") !== -1;
+
+    var title = isFullyCharged ? "EV fully charged" : "EV charging stopped";
+    var body = isFullyCharged
+      ? "Your EV is fully charged — time to move your car."
+      : "Your EV has stopped charging.";
+
     UrlFetchApp.fetch("https://ntfy.sh/" + encodeURIComponent(NTFY_TOPIC), {
       method: "post",
-      payload: "Your EV is fully charged — time to move your car.",
+      payload: body,
       headers: {
-        Title: "EV fully charged",
+        Title: title,
         Priority: "urgent",
         Tags: "battery",
       },
@@ -43,10 +55,10 @@ function checkForFullChargeEmail() {
 // this function first, so you won't end up with duplicates.
 function installTrigger() {
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
-    if (trigger.getHandlerFunction() === "checkForFullChargeEmail") {
+    if (trigger.getHandlerFunction() === "checkForChargingEmails") {
       ScriptApp.deleteTrigger(trigger);
     }
   });
 
-  ScriptApp.newTrigger("checkForFullChargeEmail").timeBased().everyMinutes(1).create();
+  ScriptApp.newTrigger("checkForChargingEmails").timeBased().everyMinutes(1).create();
 }
