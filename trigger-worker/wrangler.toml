@@ -7,3 +7,4 @@ crons = ["* * * * *"]
 
 [vars]
 GITHUB_REPO = "KehS97/ev-refresh"
+MONITORING_TOGGLE_ISSUE = "1"

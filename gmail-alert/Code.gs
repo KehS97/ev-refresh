@@ -1,8 +1,11 @@
 // EV Charger Monitor — charging status email alerts
 //
 // Runs inside Google Apps Script under your own Gmail account (no
-// credentials leave Google). Every minute it searches for new "fully
-// charged" or "stopped charging" emails from Regatta.
+// credentials leave Google). Every minute, while GitHub Issue #2
+// ("Charging status alerts") is open, it searches for new "fully charged"
+// or "stopped charging" emails from Regatta. Close that issue to pause
+// checking (e.g. once you're done charging) — independent of issue #1,
+// which only controls charger-availability notifications.
 //
 // It does NOT call ntfy.sh directly — testing showed ntfy.sh rate-limits
 // Google Apps Script's shared outbound IP pool (429s and connection
@@ -14,6 +17,7 @@
 // Setup: see ../README.md "Charging status email alerts" section.
 
 var GITHUB_REPO = "KehS97/ev-refresh";
+var MONITORING_TOGGLE_ISSUE = 2;
 var LABEL_NAME = "ev-notified";
 var SENDER = "admin-regatta@harapanenergie.com";
 var SEARCH_QUERY =
@@ -22,12 +26,40 @@ var SEARCH_QUERY =
   ' (subject:"fully charged" OR subject:"Has Stop Charging") -label:' +
   LABEL_NAME;
 
+function isMonitoringEnabled(token) {
+  var res = UrlFetchApp.fetch(
+    "https://api.github.com/repos/" + GITHUB_REPO + "/issues/" + MONITORING_TOGGLE_ISSUE,
+    {
+      headers: {
+        Authorization: "Bearer " + token,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "ev-charger-gmail-alert",
+      },
+      muteHttpExceptions: true,
+    }
+  );
+
+  if (res.getResponseCode() >= 300) {
+    throw new Error(
+      "Failed to check toggle issue state (" + res.getResponseCode() + "): " + res.getContentText()
+    );
+  }
+
+  var issue = JSON.parse(res.getContentText());
+  return issue.state === "open";
+}
+
 function checkForChargingEmails() {
   var token = PropertiesService.getScriptProperties().getProperty("GITHUB_TOKEN");
   if (!token) {
     throw new Error(
       "GITHUB_TOKEN script property is not set — see README setup step."
     );
+  }
+
+  if (!isMonitoringEnabled(token)) {
+    Logger.log("Monitoring is off (issue #" + MONITORING_TOGGLE_ISSUE + " is closed). Skipping check.");
+    return;
   }
 
   var label = GmailApp.getUserLabelByName(LABEL_NAME);

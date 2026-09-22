@@ -131,7 +131,11 @@ charging stops for any reason. iOS Shortcuts' "when I get an email"
 automation can only check every ~15 minutes (an iOS limit, not something a
 shortcut can change), so instead `gmail-alert/Code.gs` — a Google Apps
 Script running under your own Gmail account, no credentials leave Google —
-checks for either email every minute.
+checks for either email every minute, while GitHub Issue #2 ("Charging
+status alerts") is open. Close that issue to pause checking (e.g. once
+you're done charging) — it's independent of issue #1, which only controls
+charger-availability notifications, since you might be charging without
+looking for a spot, or vice versa.
 
 It doesn't push to ntfy directly — testing showed ntfy.sh rate-limits Apps
 Script's shared outbound IP pool (429s, then connection failures), the
@@ -150,8 +154,9 @@ Setup:
    file is saved.
 4. Project Settings (gear icon, left sidebar) → Script Properties → Add
    property: name `GITHUB_TOKEN`, value = the same fine-grained GitHub
-   token created for the trigger Worker (repo: `ev-refresh`, permission:
-   Actions read/write) — reuse it, no need for a second token.
+   token created for the trigger Worker (repo: `ev-refresh`, permissions:
+   Actions read/write + Issues read) — reuse it, no need for a second
+   token.
 5. Run the `checkForChargingEmails` function once from the editor (▶ button)
    — it'll prompt to authorize Gmail access for the script; approve it.
 6. Run the `installTrigger` function once (switch the function dropdown at
@@ -174,6 +179,9 @@ change.
 - `poll.js` — the polling + notification logic (Node 20+, no dependencies)
 - `state.json` — last-seen status + notify count per connector, updated by
   the workflow
-- GitHub Issue #1 — the on/off switch (open = on, closed = off)
+- GitHub Issue #1 — charger-availability on/off switch (open = on, closed = off)
+- GitHub Issue #2 — charging-status email alerts on/off switch
 - `.github/workflows/poll.yml` — the workflow_dispatch trigger and commit-back step
-- `trigger-worker/` — the Cloudflare Worker that fires the workflow on a precise 1-minute cron
+- `.github/workflows/notify.yml` — relays a title/message to ntfy for callers that can't reach it directly
+- `trigger-worker/` — the Cloudflare Worker that fires poll.yml on a precise 1-minute cron (also checks issue #1 first)
+- `gmail-alert/Code.gs` — Apps Script that checks for charging-status emails (checks issue #2 first)
