@@ -1,17 +1,30 @@
 # EV Charger Monitor
 
-Polls the Regatta EVCMS site every 5 minutes and sends a phone push when
-BASEMENT 1 or BASEMENT 2 is "Available". Runs as a GitHub Actions scheduled
-workflow so it works without your computer being on.
+Polls the Regatta EVCMS site roughly every minute and sends a phone push
+when BASEMENT 1 or BASEMENT 2 is "Available". The actual polling and
+notifying runs as a GitHub Actions workflow (works without your computer
+being on); a small Cloudflare Worker exists purely to trigger it reliably.
 
-Note: `*/5 * * * *` is the shortest cron interval GitHub Actions actually
-runs — a `* * * * *` (every minute) schedule was tried first and never
-fired once in ~18 hours, so treat sub-5-minute schedules as effectively
-unsupported rather than just "delayed." If you need tighter timing, the
-fallback is a real always-on host: a Cloudflare Worker (this repo had one —
-removed because ntfy.sh blocks Cloudflare's network) paired with a
-notification service that isn't Cloudflare-hosted, e.g. a Telegram bot via
-`api.telegram.org`, which responded fine in testing.
+## Why two moving parts
+
+GitHub's own `schedule:` cron trigger turned out to be unreliable in
+practice — a `*/5 * * * *` schedule was observed running hours apart
+instead of every 5 minutes, and GitHub doesn't guarantee timing for it.
+Cloudflare Cron Triggers are precise, but a Cloudflare Worker can't be used
+for the notification itself here because ntfy.sh blocks/drops requests
+from Cloudflare's network (confirmed via testing — other hosts like
+`api.github.com` and `api.telegram.org` work fine from a Worker, only
+`ntfy.sh` doesn't).
+
+So the split is: **`trigger-worker/`** (Cloudflare Worker, precise 1-minute
+cron) calls GitHub's `workflow_dispatch` API to say "run now" — it never
+touches ntfy.sh. The actual work — Cognito auth, status check, and the
+ntfy push — all happens inside **the GitHub Actions workflow**
+(`poll.js` / `.github/workflows/poll.yml`), where ntfy.sh is reachable.
+The repo is public so this can run every minute without hitting GitHub's
+free Actions-minutes cap (private repos: 2,000 min/month; public repos:
+unlimited). No secrets live in the code either way — only in each
+platform's encrypted secret store.
 
 ## How it works
 
@@ -86,6 +99,29 @@ secret":
 - `COGNITO_REFRESH_TOKEN` — the value from step 2
 - `NTFY_TOPIC` — your ntfy topic name from step 1
 
+### 4. Deploy the trigger Worker
+
+From `trigger-worker/`:
+
+```bash
+npm install
+npx wrangler login
+```
+
+Create a GitHub fine-grained access token at
+https://github.com/settings/personal-access-tokens/new — scope it to only
+this repo, with **Actions: Read and write** permission and nothing else.
+Then:
+
+```bash
+npx wrangler secret put GITHUB_TOKEN   # paste the token when prompted
+npx wrangler deploy
+```
+
+`wrangler.toml` already sets the cron (`* * * * *`) and the target repo
+(`GITHUB_REPO` var). Once deployed, it calls this repo's
+`workflow_dispatch` endpoint every minute.
+
 ## Testing
 
 From the Actions tab, click "Run workflow" to trigger it on demand and
@@ -100,4 +136,5 @@ change.
 - `state.json` — last-seen status + notify count per connector, updated by
   the workflow
 - GitHub Issue #1 — the on/off switch (open = on, closed = off)
-- `.github/workflows/poll.yml` — the schedule and commit-back step
+- `.github/workflows/poll.yml` — the workflow_dispatch trigger and commit-back step
+- `trigger-worker/` — the Cloudflare Worker that fires the workflow on a precise 1-minute cron

@@ -1,14 +1,13 @@
 name: Poll EV charger status
 
 on:
-  schedule:
-    # "*/5 * * * *" is the shortest cron interval GitHub officially
-    # documents as reliable. Note: brand-new repos can also take 12-48
-    # hours before GitHub's scheduler starts firing scheduled runs at all
-    # (undocumented but widely reported) — if runs aren't appearing
-    # automatically yet, that's likely why; manual "Run workflow" always
-    # works in the meantime.
-    - cron: "*/5 * * * *"
+  # No `schedule:` trigger here on purpose — GitHub's own cron scheduler is
+  # unreliable in practice (observed running hours apart instead of every
+  # 5 minutes). Instead, a Cloudflare Worker (trigger-worker/, deployed
+  # separately via wrangler) calls this workflow's dispatch API every
+  # minute on a precise Cloudflare Cron Trigger. This `workflow_dispatch`
+  # is what it calls, and also what the "Run workflow" button uses for
+  # manual testing.
   workflow_dispatch:
     inputs:
       test_notify:

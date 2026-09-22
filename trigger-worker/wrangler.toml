@@ -1,0 +1,9 @@
+name = "ev-charger-trigger"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+GITHUB_REPO = "KehS97/ev-refresh"
