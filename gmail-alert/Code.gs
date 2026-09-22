@@ -50,6 +50,22 @@ function checkForChargingEmails() {
   });
 }
 
+// Temporary diagnostic — run this once to check whether Apps Script's
+// outbound network can reach ntfy.sh at all (it may be blocked the same
+// way Cloudflare Workers were). Check View > Logs (or the Execution log
+// panel) after running for the results, then this function can be deleted.
+function diagnosePing() {
+  var targets = ["https://example.com", "https://ntfy.sh", "https://api.github.com"];
+  targets.forEach(function (url) {
+    try {
+      var res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      Logger.log(url + " -> " + res.getResponseCode());
+    } catch (e) {
+      Logger.log(url + " -> error: " + e.message);
+    }
+  });
+}
+
 // Run this once manually (from the script editor) to install the 1-minute
 // trigger. Re-running it is safe — it removes any existing trigger for
 // this function first, so you won't end up with duplicates.
