@@ -66,6 +66,43 @@ function diagnosePing() {
   });
 }
 
+// A GET to ntfy.sh worked but the real POST failed with "Address
+// unavailable" — this isolates whether it's POST-in-general, or something
+// specific to how ntfy.sh handles this POST from Apps Script.
+function diagnosePost() {
+  function tryPost(label, url, options) {
+    try {
+      var res = UrlFetchApp.fetch(url, options);
+      Logger.log(label + " -> " + res.getResponseCode());
+    } catch (e) {
+      Logger.log(label + " -> error: " + e.message);
+    }
+  }
+
+  tryPost("httpbin POST", "https://httpbin.org/post", {
+    method: "post",
+    payload: "test",
+    muteHttpExceptions: true,
+  });
+
+  tryPost("ntfy POST plain", "https://ntfy.sh/" + encodeURIComponent(NTFY_TOPIC), {
+    method: "post",
+    payload: "diagnostic test",
+    muteHttpExceptions: true,
+  });
+
+  tryPost("ntfy POST with headers + UA", "https://ntfy.sh/" + encodeURIComponent(NTFY_TOPIC), {
+    method: "post",
+    payload: "diagnostic test with headers",
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; ev-charger-monitor/1.0)",
+      Title: "Diagnostic",
+      Priority: "default",
+    },
+    muteHttpExceptions: true,
+  });
+}
+
 // Run this once manually (from the script editor) to install the 1-minute
 // trigger. Re-running it is safe — it removes any existing trigger for
 // this function first, so you won't end up with duplicates.
