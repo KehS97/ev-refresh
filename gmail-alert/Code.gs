@@ -17,7 +17,7 @@ var GITHUB_REPO = "KehS97/ev-refresh";
 var LABEL_NAME = "ev-notified";
 var SENDER = "admin-regatta@harapanenergie.com";
 var SEARCH_QUERY =
-  "from:" +
+  "newer_than:2d from:" +
   SENDER +
   ' (subject:"fully charged" OR subject:"Has Stop Charging") -label:' +
   LABEL_NAME;
