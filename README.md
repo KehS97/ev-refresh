@@ -49,7 +49,7 @@ call on a schedule:
    over or waiting on something that's already gone. Once the cap is
    reached, it stays fully silent either way — no "gone" notice either,
    since by then you may not even be planning to charge anymore. It also
-   pushes once when a connector changes to `SuspendedEV` (the car stopped
+   pushes up to 3 times (same cap) when a connector changes to `SuspendedEV` (the car stopped
    charging but is still plugged in).
 6. Remember status + notify count in `state.json`, committed back to the
    repo only when something actually changed.

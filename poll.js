@@ -176,18 +176,25 @@ async function main() {
         console.log(`${conn.station} is no longer available — notifying.`);
         await notify(`${conn.station} is no longer available anymore.`);
       }
-      if (
-        conn.status === SUSPENDED_STATUS &&
-        previous.status &&
-        previous.status !== SUSPENDED_STATUS
-      ) {
-        console.log(`${conn.station} changed to ${SUSPENDED_STATUS} — notifying.`);
-        await notify(
-          `${conn.station} is now ${SUSPENDED_STATUS} (the car stopped charging).`,
-          "EV charger suspended"
-        );
+      if (conn.status === SUSPENDED_STATUS) {
+        if (previous.status !== SUSPENDED_STATUS) {
+          notifyCount = 0; // a fresh suspended window just started
+        }
+        if (notifyCount < MAX_NOTIFICATIONS_PER_WINDOW) {
+          notifyCount += 1;
+          console.log(
+            `${conn.station} is ${SUSPENDED_STATUS} — notifying (${notifyCount}/${MAX_NOTIFICATIONS_PER_WINDOW}).`
+          );
+          await notify(
+            `${conn.station} is now ${SUSPENDED_STATUS} (the car stopped charging). (Reminder ${notifyCount}/${MAX_NOTIFICATIONS_PER_WINDOW})`,
+            "EV charger suspended"
+          );
+        } else {
+          console.log(`${conn.station} still ${SUSPENDED_STATUS} — notification cap reached, staying quiet.`);
+        }
+      } else {
+        notifyCount = 0; // reset so the next window notifies fresh
       }
-      notifyCount = 0; // reset so the next availability window notifies fresh
     }
 
     if (conn.status !== previous.status || notifyCount !== previous.notifyCount) {
