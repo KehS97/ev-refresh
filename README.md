@@ -48,7 +48,9 @@ call on a schedule:
    it pushes a "no longer available" notice instead, so you're not driving
    over or waiting on something that's already gone. Once the cap is
    reached, it stays fully silent either way — no "gone" notice either,
-   since by then you may not even be planning to charge anymore.
+   since by then you may not even be planning to charge anymore. It also
+   pushes once when a connector changes to `SuspendedEV` (the car stopped
+   charging but is still plugged in).
 6. Remember status + notify count in `state.json`, committed back to the
    repo only when something actually changed.
 

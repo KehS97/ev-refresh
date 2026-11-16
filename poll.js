@@ -18,6 +18,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 
 const AVAILABLE_STATUS = "Available";
+const SUSPENDED_STATUS = "SuspendedEV";
 const MAX_NOTIFICATIONS_PER_WINDOW = 3; // the initial ping + 2 reminders
 const COGNITO_CLIENT_ID = "6mbpildnjj725vhpe16409llfq";
 const COGNITO_OAUTH_DOMAIN = "evcms-rtta.auth.ap-southeast-1.amazoncognito.com";
@@ -73,13 +74,13 @@ async function fetchConnectorStatuses(accessToken) {
   return statuses;
 }
 
-async function notify(text) {
+async function notify(text, title = "EV charger available") {
   const topic = process.env.NTFY_TOPIC.trim();
   const res = await fetch(`https://ntfy.sh/${encodeURIComponent(topic)}`, {
     method: "POST",
     headers: {
       "User-Agent": "Mozilla/5.0 (compatible; ev-charger-monitor/1.0)",
-      Title: "EV charger available",
+      Title: title,
       Priority: "urgent",
       Tags: "zap",
     },
@@ -174,6 +175,17 @@ async function main() {
         // relevant," not "still track this," so we stop caring either way.
         console.log(`${conn.station} is no longer available — notifying.`);
         await notify(`${conn.station} is no longer available anymore.`);
+      }
+      if (
+        conn.status === SUSPENDED_STATUS &&
+        previous.status &&
+        previous.status !== SUSPENDED_STATUS
+      ) {
+        console.log(`${conn.station} changed to ${SUSPENDED_STATUS} — notifying.`);
+        await notify(
+          `${conn.station} is now ${SUSPENDED_STATUS} (the car stopped charging).`,
+          "EV charger suspended"
+        );
       }
       notifyCount = 0; // reset so the next availability window notifies fresh
     }
