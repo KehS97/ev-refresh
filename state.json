@@ -1,10 +1,10 @@
 {
   "JVE224503078WE": {
-    "status": "Available",
-    "notifyCount": 3
+    "status": "Preparing",
+    "notifyCount": 0
   },
   "JVE241100723WE": {
-    "status": "SuspendedEV",
-    "notifyCount": 3
+    "status": "Available",
+    "notifyCount": 1
   }
 }
