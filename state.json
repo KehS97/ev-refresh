@@ -4,7 +4,7 @@
     "notifyCount": 0
   },
   "JVE241100723WE": {
-    "status": "Charging",
-    "notifyCount": 0
+    "status": "SuspendedEV",
+    "notifyCount": 1
   }
 }
