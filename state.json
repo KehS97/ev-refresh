@@ -1,10 +1,10 @@
 {
   "JVE224503078WE": {
-    "status": "Charging",
+    "status": "Offline",
     "notifyCount": 0
   },
   "JVE241100723WE": {
-    "status": "Charging",
+    "status": "Offline",
     "notifyCount": 0
   }
 }
